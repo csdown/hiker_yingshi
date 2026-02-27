@@ -2,7 +2,7 @@ const csdown = {
     d: [],
     author: '流苏',
     title: '一起刷',
-    version: '20260223',
+    version: '20260227',
     home: function() {
         let d = this.d;
         if (MY_PAGE == 1) {
@@ -230,21 +230,23 @@ const csdown = {
             "column_id": Number(MY_PARAMS.id),
             "page_num": MY_PAGE
         });
-        list.list.forEach(data => {
-            d.push({
-                title: data.name,
-                desc: `共${data.video_count}部`,
-                img: photo_domain + data.background,
-                url: $('hiker://empty?page=fypage&#gameTheme#').rule(() => {
-                    $.require('csdown').subject();
-                }),
-                col_type: 'pic_1_card',
-                extra: {
-                    subjectid: data.subjectid,
-                    name: data.name,
-                }
+        if (list.list) {
+            list.list.forEach(data => {
+                d.push({
+                    title: data.name,
+                    desc: `共${data.video_count}部`,
+                    img: photo_domain + data.background,
+                    url: $('hiker://empty?page=fypage&#gameTheme#').rule(() => {
+                        $.require('csdown').subject();
+                    }),
+                    col_type: 'pic_1_card',
+                    extra: {
+                        subjectid: data.subjectid,
+                        name: data.name,
+                    }
+                })
             })
-        })
+        }
         setResult(d)
     },
     person() {
@@ -490,11 +492,7 @@ const csdown = {
     init() {
         if (!getMyVar('aaa', '')) {
             if (!getItem('uuid', '')) setItem('uuid', this.generateRandomHex(16));
-            let host_arr = [
-                'https://ansj.ejjjaakq.com/',
-                'https://apif.ttassfgz.com/',
-                'https://ellq.glasneh.com/'
-            ];
+            let host_arr = JSON.parse(base64Decode(JSON.parse(fetch('https://dns.alidns.com/resolve?name=host.movieyqs.com&short=true&type=16&t=' + Math.floor(Date.now())))[0].replace(/"/g, ''))).url.map(c => c + '/');
             for (let it of host_arr) {
                 if (request(it + 'ping') == 'pong') {
                     setItem('host', it);
@@ -744,11 +742,17 @@ const csdown = {
                 "““声明””：本小程序作者为““" + this.author + "””",
             ]
         }, {
+            title: "2026/02/27",
+            records: [
+                "‘‘优化’’：优化域名获取",
+                "‘‘修复’’：修复部分bug",
+            ]
+        }, {
             title: "2026/02/23",
             records: [
                 "““更新””：增加页面",
             ]
-        }, ]);
+        }]);
     },
     post(url, body, jx) {
         eval(getCryptoJS());
@@ -1145,7 +1149,7 @@ const csdown = {
                     }, data.ep_id, play_line_id),
                     col_type: col,
                     extra: {
-                        ep_id: data.ep_id,
+                        id: 'yqs_' + data.ep_id,
                         cls: '选集_',
                     }
                 }
