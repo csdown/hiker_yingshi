@@ -3,7 +3,7 @@ const csdown = {
     d_: [],
     author: '流苏',
     title: '瓜子影视',
-    version: 20260517,
+    version: 20260619,
     home: function() {
         let d = this.d,
             d_ = this.d_,
@@ -183,7 +183,7 @@ const csdown = {
         let decryptedStr = decrypt.toString(CryptoJS.enc.Utf8);
         return decryptedStr;
     },
-    Decrypt_Hex: function(word, key_, iv_) {
+    Decrypt_Hex_: function(word, key_, iv_) {
         eval(getCryptoJS())
         const key = CryptoJS.enc.Utf8.parse(key_);
         const iv = CryptoJS.enc.Utf8.parse(iv_);
@@ -199,7 +199,7 @@ const csdown = {
         return decryptedStr;
     },
     // 加密函数
-    Encrypt: function(plaintext, key_, iv_) {
+    Encrypt_: function(plaintext, key_, iv_) {
         eval(getCryptoJS())
         const key = CryptoJS.enc.Utf8.parse(key_);
         const iv = CryptoJS.enc.Utf8.parse(iv_);
@@ -210,6 +210,85 @@ const csdown = {
         });
         let ciphertext = encrypted.ciphertext.toString(CryptoJS.enc.Hex).toUpperCase();
         return ciphertext;
+    },
+    Decrypt_Hex(data, key, iv) {
+        const Cipher = javax.crypto.Cipher;
+        const SecretKeySpec = javax.crypto.spec.SecretKeySpec;
+        const IvParameterSpec = javax.crypto.spec.IvParameterSpec;
+        const JString = java.lang.String;
+        const JArray = java.lang.reflect.Array;
+        const JByte = java.lang.Byte;
+        try {
+            const mode = "AES/CBC/PKCS7Padding";
+            const algorithm = mode.split("/")[0];
+            // 1. 处理Hex密文字符串，去除空格转byte[]
+            let hexStr = new JString(data).replaceAll("\\s+", "");
+            let encryptedBytes;
+            try {
+                // Android高版本原生HexFormat
+                encryptedBytes = java.util.HexFormat.of().parseHex(hexStr);
+            } catch (e) {
+                // 低版本兼容手动转Hex
+                let hexLen = hexStr.length();
+                let byteCount = hexLen / 2;
+                encryptedBytes = JArray.newInstance(JByte.TYPE, byteCount);
+                let idx = 0;
+                for (let i = 0; i < hexLen; i += 2) {
+                    let sub = hexStr.substring(i, i + 2);
+                    let num = java.lang.Integer.parseInt(sub, 16);
+                    encryptedBytes[idx++] = ((num & 0xff) << 24) >> 24;
+                }
+            }
+            // 2. 密钥、IV UTF8转字节（和CryptoJS Utf8.parse一致）
+            let keyBytes = new JString(key).getBytes("UTF-8");
+            let ivBytes = new JString(iv).getBytes("UTF-8");
+            // 3. 初始化密钥与IV向量
+            let secretKey = new SecretKeySpec(keyBytes, algorithm);
+            let ivSpec = new IvParameterSpec(ivBytes);
+            // 4. 创建Cipher并初始化解密模式 2=DECRYPT_MODE
+            let cipher = Cipher.getInstance(mode);
+            cipher.init(2, secretKey, ivSpec);
+            // 5. 解密转UTF8字符串返回
+            let plainBytes = cipher.doFinal(encryptedBytes);
+            return new JString(plainBytes, "UTF-8");
+        } catch (e) {
+            log("Decrypt_Hex解密失败: " + e.toString());
+            return null;
+        }
+    },
+    Encrypt(plaintext, key, iv) {
+        const Cipher = javax.crypto.Cipher;
+        const SecretKeySpec = javax.crypto.spec.SecretKeySpec;
+        const IvParameterSpec = javax.crypto.spec.IvParameterSpec;
+        const JString = java.lang.String;
+        const HexFormat = java.util.HexFormat;
+        try {
+            const transform = "AES/CBC/PKCS7Padding";
+            const alg = transform.split("/")[0];
+
+            // 明文转UTF8字节
+            let plainBytes = new JString(plaintext).getBytes("UTF-8");
+            // key、iv UTF8转字节，和CryptoJS Utf8.parse行为一致
+            let keyBytes = new JString(key).getBytes("UTF-8");
+            let ivBytes = new JString(iv || key).getBytes("UTF-8");
+
+            let secretKey = new SecretKeySpec(keyBytes, alg);
+            let ivSpec = new IvParameterSpec(ivBytes);
+
+            // 初始化加密模式 1 = ENCRYPT_MODE
+            let cipher = Cipher.getInstance(transform);
+            cipher.init(1, secretKey, ivSpec);
+
+            // 加密得到密文字节数组
+            let cipherBytes = cipher.doFinal(plainBytes);
+
+            // 转大写Hex字符串，对应 toString(CryptoJS.enc.Hex).toUpperCase()
+            let hexStr = HexFormat.of().withUpperCase().formatHex(cipherBytes);
+            return hexStr;
+        } catch (e) {
+            log("Encrypt_Hex加密失败: " + e);
+            return null;
+        }
     },
     rsa_en: function(data) {
         let rsakey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDUM5+/y8sPsWkd1/RQS64X259EUwxFXFE5HlA65MqrxnPs0JqoSRojSDy5QhwvROlaD6TwRQHKMY2OAZ6SnQeUJsChTEFIR9qUkwrs3/MVUMxjsv6JS6Oe/juclyJGTgVmDhB55EafXsD0SQYVj/QXXsxR6ewR5E2kL52yAAD4yQIDAQAB";
@@ -260,7 +339,7 @@ const csdown = {
             method: 'POST',
         })).data;
         let keys_ = this.rsa_de(html.keys);
-        let response_key_ = this.Decrypt_Hex(html.response_key, keys_.key, keys_.iv)
+        let response_key_ = this.Decrypt_Hex(html.response_key, keys_.key, keys_.iv);
         return JSON.parse(response_key_);
     },
     setDesc: function(d, desc, num) {
@@ -434,6 +513,11 @@ const csdown = {
                 "““声明””：随时可能跑路",
                 "““声明””：不要相信里面的广告",
                 "““声明””：本小程序作者为““" + this.author + "””",
+            ]
+        }, {
+            title: "2026/06/19",
+            records: [
+                "‘‘优化’’：优化解密逻辑函数，优化加载速度",
             ]
         }, {
             title: "2026/05/17",
