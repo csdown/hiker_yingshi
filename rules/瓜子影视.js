@@ -3,7 +3,7 @@ const csdown = {
     d_: [],
     author: '流苏',
     title: '瓜子影视',
-    version: 20260619,
+    version: 202606192,
     home: function() {
         let d = this.d,
             d_ = this.d_,
@@ -261,32 +261,48 @@ const csdown = {
         const SecretKeySpec = javax.crypto.spec.SecretKeySpec;
         const IvParameterSpec = javax.crypto.spec.IvParameterSpec;
         const JString = java.lang.String;
-        const HexFormat = java.util.HexFormat;
+        const JArray = java.lang.reflect.Array;
+        const JByte = java.lang.Byte;
         try {
             const transform = "AES/CBC/PKCS7Padding";
             const alg = transform.split("/")[0];
-
             // 明文转UTF8字节
             let plainBytes = new JString(plaintext).getBytes("UTF-8");
             // key、iv UTF8转字节，和CryptoJS Utf8.parse行为一致
             let keyBytes = new JString(key).getBytes("UTF-8");
             let ivBytes = new JString(iv || key).getBytes("UTF-8");
-
             let secretKey = new SecretKeySpec(keyBytes, alg);
             let ivSpec = new IvParameterSpec(ivBytes);
-
             // 初始化加密模式 1 = ENCRYPT_MODE
             let cipher = Cipher.getInstance(transform);
             cipher.init(1, secretKey, ivSpec);
-
             // 加密得到密文字节数组
             let cipherBytes = cipher.doFinal(plainBytes);
-
-            // 转大写Hex字符串，对应 toString(CryptoJS.enc.Hex).toUpperCase()
-            let hexStr = HexFormat.of().withUpperCase().formatHex(cipherBytes);
+            // 转大写Hex字符串，增加低版本兼容逻辑
+            let hexStr;
+            try {
+                // 高版本Android使用HexFormat
+                hexStr = java.util.HexFormat.of().withUpperCase().formatHex(cipherBytes);
+            } catch (e) {
+                // 低版本无HexFormat，手动字节转大写Hex
+                let len = JArray.getLength(cipherBytes);
+                let sb = new java.lang.StringBuilder();
+                for (let i = 0; i < len; i++) {
+                    let b = cipherBytes[i];
+                    // 转无符号8位整数
+                    let val = b & 0xFF;
+                    // 补零两位大写十六进制
+                    let hex = java.lang.Integer.toHexString(val).toUpperCase();
+                    if (hex.length() === 1) {
+                        sb.append("0");
+                    }
+                    sb.append(hex);
+                }
+                hexStr = sb.toString();
+            }
             return hexStr;
         } catch (e) {
-            log("Encrypt_Hex加密失败: " + e);
+            log("Encrypt加密失败: " + e);
             return null;
         }
     },
